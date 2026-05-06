@@ -514,6 +514,12 @@ function setOwnerBadge(elId, filename) {
 
 // ── Voting ────────────────────────────────────────
 
+function preloadMatchup(matchup) {
+  if (!matchup) return;
+  if (matchup.entryA?.url && !matchup.entryA.isBye) new Image().src = matchup.entryA.url;
+  if (matchup.entryB?.url && !matchup.entryB.isBye) new Image().src = matchup.entryB.url;
+}
+
 function showVoting() {
   showScreen('screen-voting');
   const round   = state.rounds[state.currentRound];
@@ -535,6 +541,9 @@ function showVoting() {
 
   document.getElementById('contender-a').classList.remove('chosen');
   document.getElementById('contender-b').classList.remove('chosen');
+
+  // Preload next matchup while user is deciding
+  preloadMatchup(round[state.currentMatchup + 1]);
 }
 
 async function castVote(side) {
@@ -563,6 +572,9 @@ function showBetweenRounds() {
 
   const newRound = state.rounds[state.currentRound];
   const survivors = newRound.flatMap(m => [m.entryA, m.entryB]);
+
+  // Preload first matchup of the new round while user reads results
+  preloadMatchup(newRound[0]);
 
   document.getElementById('between-title').textContent =
     `${getRoundLabel(state.currentRound - 1)} Complete!`;
