@@ -14,16 +14,57 @@
       <div class="crown">♛</div>
       <h1>May Madness</h1>
       <p class="subtitle">Met Gala Edition</p>
+      <div class="lobby-search-wrap">
+        <span class="lobby-search-icon">⌕</span>
+        <input id="lobby-search" class="lobby-search-input" type="text" placeholder="Search looks…" oninput="filterLobby()" />
+      </div>
     </div>
     <div class="lobby-grid" id="lobby-grid">
       <!-- filled by JS -->
     </div>
     <div class="lobby-footer">
-      <span id="lobby-count">Loading…</span>
-      <div class="lobby-footer-actions">
-        <button id="btn-start-direct" class="btn-secondary" disabled onclick="startDirect()">Skip Draft</button>
-        <button id="btn-setup-draft" class="btn-primary" disabled onclick="showDraftSetup()">Set Up Draft →</button>
+      <div class="lobby-footer-left">
+        <button id="btn-select-mode" class="btn-secondary" onclick="toggleLobbySelectMode()">Download Photos</button>
+        <span id="lobby-count"></span>
       </div>
+      <div class="lobby-footer-actions">
+        <div class="size-selector-group">
+          <span class="size-selector-label">Bracket size</span>
+          <div class="size-selector" id="size-selector">
+            <button class="size-btn active" data-size="32" onclick="setSize(32)">32</button>
+            <button class="size-btn" data-size="64" onclick="setSize(64)">64</button>
+            <button class="size-btn" data-size="128" onclick="setSize(128)">128</button>
+            <button class="size-btn" data-size="256" onclick="setSize(256)">256</button>
+          </div>
+        </div>
+        <button id="btn-start-direct" class="btn-secondary" disabled onclick="startRandom()">Random Bracket →</button>
+        <div class="footer-divider"></div>
+        <button id="btn-setup-draft" class="btn-primary" disabled onclick="showDraftMode()">Draft Your Top 32 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ DRAFT MODE SELECT ══════════════════ -->
+  <div id="screen-draft-mode" class="screen">
+    <div class="lobby-header">
+      <div class="crown">♛</div>
+      <h1>Draft Your Top 32</h1>
+      <p class="subtitle">How are you drafting tonight?</p>
+    </div>
+    <div class="draft-mode-cards">
+      <div class="draft-mode-card" onclick="startSoloDraft()">
+        <div class="draft-mode-icon">♛</div>
+        <div class="draft-mode-title">Just Me</div>
+        <div class="draft-mode-desc">Hand-pick your personal top 32 and run the bracket solo</div>
+      </div>
+      <div class="draft-mode-card" onclick="showDraftSetup()">
+        <div class="draft-mode-icon">♛♛</div>
+        <div class="draft-mode-title">With Friends</div>
+        <div class="draft-mode-desc">Take turns in a snake draft, then vote head-to-head together</div>
+      </div>
+    </div>
+    <div class="draft-setup-footer">
+      <button class="btn-secondary" onclick="showScreen('screen-lobby')">← Back</button>
     </div>
   </div>
 
@@ -35,7 +76,7 @@
       <p class="subtitle">Who's picking tonight?</p>
     </div>
     <div class="draft-setup-body">
-      <p class="draft-setup-hint">Add players in draft order — snake draft, 32 picks total</p>
+      <p class="draft-setup-hint" id="draft-setup-hint">Add your name to pick your top 32, or add friends for a snake draft</p>
       <div id="draft-player-list" class="draft-player-list"></div>
       <div class="draft-add-row">
         <input id="draft-name-input" class="draft-name-input" type="text" placeholder="Enter name…" maxlength="24" />
@@ -43,6 +84,7 @@
       </div>
     </div>
     <div class="draft-setup-footer">
+      <button class="btn-secondary" onclick="showScreen('screen-lobby')">← Back</button>
       <button class="btn-secondary" onclick="shuffleDraftPlayers()">Shuffle Order</button>
       <button id="btn-begin-draft" class="btn-primary" onclick="beginDraft()" disabled>Begin Draft →</button>
     </div>
@@ -101,6 +143,7 @@
           <div class="contender-overlay"></div>
         </div>
         <div class="contender-name" id="name-a">—</div>
+        <div class="contender-owner" id="owner-a"></div>
         <div class="vote-label">TAP TO CHOOSE</div>
       </div>
       <div class="vs-divider">
@@ -112,6 +155,7 @@
           <div class="contender-overlay"></div>
         </div>
         <div class="contender-name" id="name-b">—</div>
+        <div class="contender-owner" id="owner-b"></div>
         <div class="vote-label">TAP TO CHOOSE</div>
       </div>
     </div>
@@ -123,6 +167,7 @@
       <div class="crown">♛</div>
       <h2 id="between-title">Round Complete!</h2>
       <p id="between-subtitle">Advancing to the next round…</p>
+      <div class="drafter-stats" id="drafter-stats"></div>
       <div class="winners-grid" id="winners-grid"></div>
       <button class="btn-primary" onclick="startNextRound()">Begin Next Round →</button>
     </div>
@@ -154,6 +199,7 @@
         <img id="champion-img" src="" alt="" />
       </div>
       <div class="champion-name" id="champion-name">—</div>
+      <div class="champion-owner" id="champion-owner"></div>
       <div class="champion-actions">
         <button class="btn-primary" onclick="showBracket()">View Full Bracket</button>
         <button class="btn-danger" onclick="resetApp()">Start Over</button>
@@ -167,6 +213,36 @@
     <button onclick="resumeVoting()" class="nav-btn">Vote</button>
     <button onclick="resetApp()" class="nav-btn nav-danger">Reset</button>
   </nav>
+
+  <!-- Selection bar -->
+  <div id="selection-bar" class="selection-bar hidden">
+    <span id="selection-count">0 selected</span>
+    <button class="sel-btn" onclick="selectAllVisible()">Select All</button>
+    <button class="sel-btn" onclick="clearSelection()">Clear</button>
+    <button class="sel-btn sel-download" onclick="downloadSelected()">⬇ Download ZIP</button>
+  </div>
+
+  <!-- Photo popup -->
+  <div id="photo-popup" class="photo-popup hidden">
+    <button class="popup-arrow popup-arrow-prev" id="popup-arrow-prev" onclick="navigatePopup(-1)">&#8592;</button>
+    <img id="photo-popup-img" src="" alt="" />
+    <div class="photo-popup-name" id="photo-popup-name"></div>
+    <div class="photo-popup-owner" id="photo-popup-owner"></div>
+    <button class="popup-arrow popup-arrow-next" id="popup-arrow-next" onclick="navigatePopup(1)">&#8594;</button>
+  </div>
+
+  <!-- Draft preview modal -->
+  <div id="draft-preview-modal" class="draft-preview-modal hidden">
+    <div class="draft-preview-backdrop" onclick="closeDraftPreview()"></div>
+    <div class="draft-preview-content">
+      <img id="draft-preview-img" src="" alt="" />
+      <div class="draft-preview-name" id="draft-preview-name"></div>
+      <div class="draft-preview-actions">
+        <button class="btn-secondary" onclick="closeDraftPreview()">Cancel</button>
+        <button class="btn-primary" id="draft-preview-pick-btn" onclick="confirmDraftPick()">Pick →</button>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>
