@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>May Madness — Met Gala Edition</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ══════════════════ LOBBY ══════════════════ -->
+  <div id="screen-lobby" class="screen active">
+    <div class="lobby-header">
+      <div class="crown">♛</div>
+      <h1>May Madness</h1>
+      <p class="subtitle">Met Gala Edition</p>
+    </div>
+    <div class="lobby-grid" id="lobby-grid">
+      <!-- filled by JS -->
+    </div>
+    <div class="lobby-footer">
+      <span id="lobby-count">Loading…</span>
+      <div class="lobby-footer-actions">
+        <button id="btn-start-direct" class="btn-secondary" disabled onclick="startDirect()">Skip Draft</button>
+        <button id="btn-setup-draft" class="btn-primary" disabled onclick="showDraftSetup()">Set Up Draft →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ DRAFT SETUP ══════════════════ -->
+  <div id="screen-draft-setup" class="screen">
+    <div class="lobby-header">
+      <div class="crown">♛</div>
+      <h1>Draft Setup</h1>
+      <p class="subtitle">Who's picking tonight?</p>
+    </div>
+    <div class="draft-setup-body">
+      <p class="draft-setup-hint">Add players in draft order — snake draft, 32 picks total</p>
+      <div id="draft-player-list" class="draft-player-list"></div>
+      <div class="draft-add-row">
+        <input id="draft-name-input" class="draft-name-input" type="text" placeholder="Enter name…" maxlength="24" />
+        <button class="btn-secondary" onclick="addDraftPlayer()">Add</button>
+      </div>
+    </div>
+    <div class="draft-setup-footer">
+      <button class="btn-secondary" onclick="shuffleDraftPlayers()">Shuffle Order</button>
+      <button id="btn-begin-draft" class="btn-primary" onclick="beginDraft()" disabled>Begin Draft →</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════ DRAFT ══════════════════ -->
+  <div id="screen-draft" class="screen">
+    <div class="draft-top-bar">
+      <div class="draft-picker-block">
+        <div class="draft-picker-name" id="draft-picker-name">—</div>
+        <div class="draft-picker-sub">is picking</div>
+      </div>
+      <div class="draft-search-wrap">
+        <span class="draft-search-icon">⌕</span>
+        <input id="draft-search" class="draft-search-input" type="text" placeholder="Search…" oninput="filterDraftGrid()" />
+      </div>
+      <div class="draft-top-right">
+        <div class="draft-pick-count" id="draft-pick-count">Pick 1 of 32</div>
+        <button class="btn-secondary draft-view-btn" onclick="toggleDraftBoard()">View Picks</button>
+        <button class="btn-danger draft-view-btn" onclick="resetDraft()">Reset</button>
+      </div>
+    </div>
+    <div class="draft-photo-grid" id="draft-photo-grid"></div>
+    <div class="draft-board-overlay hidden" id="draft-board-overlay">
+      <div class="draft-board-panel">
+        <div class="draft-board-header">
+          <h3>Draft Board</h3>
+          <button class="btn-secondary" onclick="toggleDraftBoard()">Close</button>
+        </div>
+        <div class="draft-board-columns" id="draft-board-columns"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ DRAFT COMPLETE ══════════════════ -->
+  <div id="screen-draft-complete" class="screen">
+    <div class="between-content">
+      <div class="crown">♛</div>
+      <h2>The Final 32</h2>
+      <p>Draft complete — let the games begin</p>
+      <div class="winners-grid" id="draft-final-grid"></div>
+      <button class="btn-primary" onclick="startBracketFromDraft()">Start the Bracket →</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════ VOTING ══════════════════ -->
+  <div id="screen-voting" class="screen">
+    <div class="voting-header">
+      <div class="round-badge" id="round-badge">Round of 32</div>
+      <div class="matchup-progress" id="matchup-progress">Matchup 1 of 16</div>
+    </div>
+    <div class="versus-container">
+      <div class="contender" id="contender-a" onclick="castVote('A')">
+        <div class="contender-img-wrap">
+          <img id="img-a" src="" alt="" />
+          <div class="contender-overlay"></div>
+        </div>
+        <div class="contender-name" id="name-a">—</div>
+        <div class="vote-label">TAP TO CHOOSE</div>
+      </div>
+      <div class="vs-divider">
+        <span class="vs-text">VS</span>
+      </div>
+      <div class="contender" id="contender-b" onclick="castVote('B')">
+        <div class="contender-img-wrap">
+          <img id="img-b" src="" alt="" />
+          <div class="contender-overlay"></div>
+        </div>
+        <div class="contender-name" id="name-b">—</div>
+        <div class="vote-label">TAP TO CHOOSE</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ BETWEEN ROUNDS ══════════════════ -->
+  <div id="screen-between" class="screen">
+    <div class="between-content">
+      <div class="crown">♛</div>
+      <h2 id="between-title">Round Complete!</h2>
+      <p id="between-subtitle">Advancing to the next round…</p>
+      <div class="winners-grid" id="winners-grid"></div>
+      <button class="btn-primary" onclick="startNextRound()">Begin Next Round →</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════ BRACKET VIEW ══════════════════ -->
+  <div id="screen-bracket" class="screen">
+    <div class="bracket-header">
+      <h2>The Bracket</h2>
+      <button class="btn-secondary" onclick="resumeVoting()">Resume Voting →</button>
+    </div>
+    <!-- round labels row -->
+    <div class="bracket-labels-row" id="bracket-labels-row"></div>
+    <!-- scrollable canvas -->
+    <div class="bracket-scroll">
+      <div class="bracket-canvas" id="bracket-canvas">
+        <!-- SVG lines + absolutely positioned cards injected by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ CHAMPION ══════════════════ -->
+  <div id="screen-champion" class="screen">
+    <div class="champion-content">
+      <div class="confetti-layer" id="confetti-layer"></div>
+      <div class="crown champion-crown">♛</div>
+      <h1 class="champion-title">Best Dressed</h1>
+      <div class="champion-img-wrap">
+        <img id="champion-img" src="" alt="" />
+      </div>
+      <div class="champion-name" id="champion-name">—</div>
+      <div class="champion-actions">
+        <button class="btn-primary" onclick="showBracket()">View Full Bracket</button>
+        <button class="btn-danger" onclick="resetApp()">Start Over</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ NAV ══════════════════ -->
+  <nav id="nav-bar" class="hidden">
+    <button onclick="showBracket()" class="nav-btn">Bracket</button>
+    <button onclick="resumeVoting()" class="nav-btn">Vote</button>
+    <button onclick="resetApp()" class="nav-btn nav-danger">Reset</button>
+  </nav>
+
+  <script src="app.js"></script>
+</body>
+</html>
