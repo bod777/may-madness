@@ -19,6 +19,10 @@ function api(path, opts = {}) {
   return fetch(url, opts);
 }
 
+function thumbUrl(url) {
+  return url.replace('/photos/', '/thumbnail/');
+}
+
 const PLAYER_COLORS = [
   '#c9a84c', // gold
   '#5b8dd9', // blue
@@ -130,7 +134,7 @@ function renderLobby() {
     card.dataset.popupName = entry.name;
     if (selectedPhotos.has(entry.filename)) card.classList.add('selected');
     card.innerHTML = `
-      <img src="${entry.url}" alt="${entry.name}" loading="lazy" />
+      <img src="${thumbUrl(entry.url)}" alt="${entry.name}" loading="lazy" />
       <div class="lobby-card-name">${entry.name}</div>
     `;
     card.addEventListener('click', e => {
@@ -310,7 +314,7 @@ function renderDraftGrid() {
     card.dataset.filename  = entry.filename;
     card.dataset.name      = entry.name;
     card.innerHTML = `
-      <img src="${entry.url}" alt="${entry.name}" loading="lazy" />
+      <img src="${thumbUrl(entry.url)}" alt="${entry.name}" loading="lazy" />
       <div class="draft-photo-card-name">${entry.name}</div>
       <div class="draft-photo-pick-label">PREVIEW</div>
     `;
@@ -428,7 +432,7 @@ function renderDraftBoard() {
       if (pick) {
         slot.className = 'draft-board-pick-card';
         slot.innerHTML = `
-          <img src="${pick.entry.url}" alt="${pick.entry.name}" />
+          <img src="${thumbUrl(pick.entry.url)}" alt="${pick.entry.name}" />
           <div class="draft-board-pick-name">${pick.entry.name}</div>
         `;
       } else {
@@ -468,7 +472,7 @@ function showDraftComplete() {
     card.style.borderColor = color;
     if (selectedPhotos.has(entry.filename)) card.classList.add('selected');
     card.innerHTML = `
-      <img src="${entry.url}" alt="${entry.name}" />
+      <img src="${thumbUrl(entry.url)}" alt="${entry.name}" />
       <div class="winner-card-name">${entry.name}</div>
       <div class="winner-card-owner" style="color:${color}">● ${playerName}</div>
     `;
@@ -614,7 +618,7 @@ function showBetweenRounds() {
       card.style.boxShadow = `0 0 10px ${owner.color}55`;
     }
     card.innerHTML = `
-      <img src="${entry.url}" alt="${entry.name}" />
+      <img src="${thumbUrl(entry.url)}" alt="${entry.name}" />
       <div class="winner-card-name">${entry.name}</div>
       ${owner ? `<div class="winner-card-owner" style="color:${owner.color};border:1px solid ${owner.color}40">● ${owner.name}</div>` : ''}
     `;
@@ -828,7 +832,7 @@ function appendCard(container, entry, x, y, isWinner, isEliminated, isChampion =
   const owner = getOwner(entry.filename);
   if (owner) el.style.borderLeftColor = owner.color;
   el.innerHTML = `
-    <img class="b-card-photo" src="${entry.url}" alt="${entry.name}"
+    <img class="b-card-photo" src="${thumbUrl(entry.url)}" alt="${entry.name}"
          style="width:${B_PW}px;height:${B_CH}px;" />
     <span class="b-card-name">${entry.name}</span>
     ${isWinner ? '<span class="b-card-star">★</span>' : ''}

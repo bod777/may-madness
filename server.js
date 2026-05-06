@@ -2,20 +2,44 @@ const express  = require('express');
 const path     = require('path');
 const fs       = require('fs');
 const archiver = require('archiver');
+const sharp    = require('sharp');
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 const SESSIONS_DIR = path.join(__dirname, 'data', 'sessions');
+const THUMBS_DIR   = path.join(__dirname, 'data', 'thumbnails');
 const PHOTOS_DIR   = path.join(__dirname, 'photos');
 const IMAGE_EXTS   = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif']);
 
 fs.mkdirSync(SESSIONS_DIR, { recursive: true });
+fs.mkdirSync(THUMBS_DIR,   { recursive: true });
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/photos', express.static(PHOTOS_DIR));
+
+// ── Thumbnail endpoint ────────────────────────────
+app.get('/thumbnail/:filename', async (req, res) => {
+  const filename = path.basename(req.params.filename);
+  const srcPath  = path.join(PHOTOS_DIR, filename);
+  if (!fs.existsSync(srcPath)) return res.status(404).send('Not found');
+
+  const thumbName = filename.replace(/\.[^.]+$/, '') + '.webp';
+  const thumbPath = path.join(THUMBS_DIR, thumbName);
+
+  if (!fs.existsSync(thumbPath)) {
+    await sharp(srcPath)
+      .resize(480, null, { withoutEnlargement: true })
+      .webp({ quality: 72 })
+      .toFile(thumbPath);
+  }
+
+  res.setHeader('Content-Type', 'image/webp');
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  res.sendFile(thumbPath);
+});
 
 // ── Session helpers ───────────────────────────────
 
