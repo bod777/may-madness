@@ -29,15 +29,7 @@ function scanPhotos() {
   if (!fs.existsSync(PHOTOS_DIR)) return [];
   const results = [];
 
-  // Root-level photos — weight 1
-  for (const f of fs.readdirSync(PHOTOS_DIR)) {
-    const full = path.join(PHOTOS_DIR, f);
-    if (IMAGE_EXTS.has(path.extname(f).toLowerCase()) && fs.statSync(full).isFile()) {
-      results.push({ name: nameFromFilename(f), filename: f, url: `/photos/${encodeURIComponent(f)}`, weight: 1 });
-    }
-  }
-
-  // Tiered subdirectory photos
+  // Tiered subdirectory photos first (featured, then boost)
   for (const [subdir, weight] of Object.entries(TIER_SUBDIRS)) {
     const subdirPath = path.join(PHOTOS_DIR, subdir);
     if (!fs.existsSync(subdirPath)) continue;
@@ -46,6 +38,14 @@ function scanPhotos() {
       if (IMAGE_EXTS.has(path.extname(f).toLowerCase()) && fs.statSync(full).isFile()) {
         results.push({ name: nameFromFilename(f), filename: `${subdir}/${f}`, url: `/photos/${subdir}/${encodeURIComponent(f)}`, weight });
       }
+    }
+  }
+
+  // Root-level photos last — weight 1
+  for (const f of fs.readdirSync(PHOTOS_DIR)) {
+    const full = path.join(PHOTOS_DIR, f);
+    if (IMAGE_EXTS.has(path.extname(f).toLowerCase()) && fs.statSync(full).isFile()) {
+      results.push({ name: nameFromFilename(f), filename: f, url: `/photos/${encodeURIComponent(f)}`, weight: 1 });
     }
   }
 
@@ -174,7 +174,19 @@ function buildBracket(entries, targetSize) {
     champion: null,
     phase: 'voting'
   };
+
+  // Pre-create all future round slots so the bracket graphic can fill in immediately
+  let prevSize = matchups.length;
+  while (prevSize > 1) {
+    const nextSize = Math.ceil(prevSize / 2);
+    bracket.rounds.push(Array.from({ length: nextSize }, () => ({
+      id: uuidv4(), entryA: null, entryB: null, winner: null
+    })));
+    prevSize = nextSize;
+  }
+
   advancePastByes(bracket);
+  fillNextRound(bracket, 0);
   return bracket;
 }
 
@@ -187,6 +199,19 @@ function advancePastByes(bracket) {
     else if (m.entryA?.isBye) { m.winner = m.entryB; bracket.currentMatchup++; }
     else break;
   }
+}
+
+function fillNextRound(bracket, roundIdx) {
+  const round = bracket.rounds[roundIdx];
+  const nextRound = bracket.rounds[roundIdx + 1];
+  if (!round || !nextRound) return;
+  round.forEach((matchup, i) => {
+    if (!matchup.winner) return;
+    const ni = Math.floor(i / 2);
+    if (!nextRound[ni]) return;
+    if (i % 2 === 0) nextRound[ni].entryA = matchup.winner;
+    else nextRound[ni].entryB = matchup.winner;
+  });
 }
 
 function getRoundName(roundIndex, totalRounds) {
@@ -286,6 +311,10 @@ app.post('/api/vote', (req, res) => {
   const round = bracket.rounds[bracket.currentRound];
   const matchup = round[bracket.currentMatchup];
   matchup.winner = winner === 'A' ? matchup.entryA : matchup.entryB;
+
+  // Eagerly fill the winner's slot in the next round
+  fillNextRound(bracket, bracket.currentRound);
+
   bracket.currentMatchup++;
   advancePastByes(bracket);
 
@@ -296,19 +325,15 @@ app.post('/api/vote', (req, res) => {
   }
 
   if (round.every(m => m.winner !== null)) {
-    const winners = round.map(m => m.winner);
-    if (winners.length === 1) {
-      bracket.champion = winners[0];
+    const nextRound = bracket.rounds[bracket.currentRound + 1];
+    if (!nextRound) {
+      bracket.champion = round[0].winner;
       bracket.phase = 'done';
     } else {
-      const nextMatchups = [];
-      for (let i = 0; i < winners.length; i += 2) {
-        nextMatchups.push({ id: uuidv4(), entryA: winners[i], entryB: winners[i + 1], winner: null });
-      }
-      bracket.rounds.push(nextMatchups);
       bracket.currentRound++;
       bracket.currentMatchup = 0;
       bracket.phase = 'between_rounds';
+      advancePastByes(bracket);
     }
   }
 

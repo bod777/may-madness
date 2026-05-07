@@ -600,7 +600,7 @@ function showBetweenRounds() {
   showScreen('screen-between');
 
   const newRound = state.rounds[state.currentRound];
-  const survivors = newRound.flatMap(m => [m.entryA, m.entryB]);
+  const survivors = newRound.flatMap(m => [m.entryA, m.entryB]).filter(Boolean);
 
   // Preload first matchup of the new round while user reads results
   preloadMatchup(newRound[0]);
@@ -838,12 +838,14 @@ function placeMatchup(container, matchup, x, cy, roundIndex = -1, matchupIdx = -
     appendEmptyCard(container, x, yB);
     return;
   }
-  const aWins = matchup.winner?.filename === matchup.entryA.filename;
-  const bWins = matchup.winner?.filename === matchup.entryB.filename;
+  const aWins = matchup.winner?.filename === matchup.entryA?.filename;
+  const bWins = matchup.winner?.filename === matchup.entryB?.filename;
   const jumpable = state.phase === 'voting' && roundIndex === state.currentRound && matchupIdx >= 0 && matchup.winner === null;
-  if (matchup.entryA?.isBye) appendByeCard(container, x, yA);
+  if (!matchup.entryA) appendEmptyCard(container, x, yA);
+  else if (matchup.entryA.isBye) appendByeCard(container, x, yA);
   else appendCard(container, matchup.entryA, x, yA, aWins, !aWins && !!matchup.winner, false, jumpable ? matchupIdx : -1);
-  if (matchup.entryB?.isBye) appendByeCard(container, x, yB);
+  if (!matchup.entryB) appendEmptyCard(container, x, yB);
+  else if (matchup.entryB.isBye) appendByeCard(container, x, yB);
   else appendCard(container, matchup.entryB, x, yB, bWins, !bWins && !!matchup.winner, false, jumpable ? matchupIdx : -1);
 }
 
