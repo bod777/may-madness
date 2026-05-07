@@ -519,6 +519,10 @@ function setOwnerBadge(elId, filename) {
 
 // ── Voting ────────────────────────────────────────
 
+function searchPerson(name) {
+  window.open('https://www.google.com/search?q=' + encodeURIComponent(name + ' Met Gala 2026'), '_blank');
+}
+
 function preloadMatchup(matchup) {
   if (!matchup) return;
   if (matchup.entryA?.url && !matchup.entryA.isBye) new Image().src = matchup.entryA.url;
@@ -546,6 +550,9 @@ function showVoting() {
 
   document.getElementById('contender-a').classList.remove('chosen');
   document.getElementById('contender-b').classList.remove('chosen');
+
+  document.getElementById('search-a').onclick = e => { e.stopPropagation(); searchPerson(matchup.entryA.name); };
+  document.getElementById('search-b').onclick = e => { e.stopPropagation(); searchPerson(matchup.entryB.name); };
 
   // Show skip button only for random brackets in round 1 with pool entries available
   const skipBtn = document.getElementById('btn-skip');
@@ -1084,9 +1091,12 @@ function initPopup() {
       .filter(c => c.style.display !== 'none' && !c.closest('.hidden'));
   }
 
+  const popupSearchBtn = document.getElementById('popup-search-btn');
+
   function show(src, name, filename, index) {
     popupImg.src = src;
     popupName.textContent = name;
+    if (popupSearchBtn) popupSearchBtn.onclick = () => searchPerson(name);
     if (popupOwner) {
       const owner = filename ? getOwner(filename) : null;
       if (owner) {
@@ -1208,6 +1218,9 @@ function showQueenVoting() {
 
   document.getElementById('queen-contender-champion').classList.remove('chosen');
   document.getElementById('queen-contender-challenger').classList.remove('chosen');
+
+  document.getElementById('queen-search-champion').onclick  = e => { e.stopPropagation(); searchPerson(champion.name); };
+  document.getElementById('queen-search-challenger').onclick = e => { e.stopPropagation(); searchPerson(challenger.name); };
 
   // Preload next challenger
   if (queenState.queue.length > 0) new Image().src = queenState.queue[0].url;
