@@ -202,7 +202,13 @@ app.post('/api/vote', (req, res) => {
   bracket.currentMatchup++;
   advancePastByes(bracket);
 
+  // If we walked off the end but earlier matchups were skipped (via jump), go back to the first unvoted one
   if (bracket.currentMatchup >= round.length) {
+    const firstUnvoted = round.findIndex(m => m.winner === null);
+    if (firstUnvoted >= 0) bracket.currentMatchup = firstUnvoted;
+  }
+
+  if (round.every(m => m.winner !== null)) {
     const winners = round.map(m => m.winner);
     if (winners.length === 1) {
       bracket.champion = winners[0];
