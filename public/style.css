@@ -65,6 +65,14 @@ html, body { height: 100%; background: var(--bg); color: var(--white); font-fami
 }
 .btn-danger:hover { background: var(--danger); color: white; }
 
+.btn-queen {
+  background: transparent; border: 1px solid var(--gold);
+  color: var(--gold); padding: 10px 22px; border-radius: var(--radius);
+  font-family: var(--serif); font-size: 15px; letter-spacing: 1px; cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.btn-queen:hover { background: var(--gold); color: #0a0a0f; box-shadow: 0 0 18px var(--gold-dim); }
+
 /* ── Crown ────────────────────────────────────────── */
 .crown { font-size: 38px; color: var(--gold); text-shadow: 0 0 24px rgba(201,168,76,0.55); line-height: 1; }
 
@@ -187,6 +195,25 @@ html, body { height: 100%; background: var(--bg); color: var(--white); font-fami
   100% { box-shadow: inset 0 0 0 0 rgba(201,168,76,0); }
 }
 .contender.chosen { animation: winner-flash 0.5s ease forwards; }
+
+.queen-badge { background: linear-gradient(135deg, var(--gold-dim), var(--gold)); color: #0a0a0f; }
+
+.queen-reigning-badge {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  background: var(--gold); color: #0a0a0f;
+  font-size: 11px; font-family: var(--sans); letter-spacing: 2px; text-transform: uppercase;
+  padding: 4px 14px; border-radius: 20px; white-space: nowrap; font-weight: 700;
+  box-shadow: 0 0 14px rgba(201,168,76,0.5);
+}
+
+.queen-back-btn {
+  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+  background: transparent; border: 1px solid var(--border); color: var(--muted);
+  font-size: 12px; letter-spacing: 1px; padding: 6px 18px; border-radius: 20px;
+  cursor: pointer; font-family: var(--sans); transition: border-color 0.2s, color 0.2s;
+  z-index: 10;
+}
+.queen-back-btn:hover { border-color: var(--gold-dim); color: var(--gold); }
 
 .btn-skip {
   position: absolute; bottom: -44px; left: 50%; transform: translateX(-50%);

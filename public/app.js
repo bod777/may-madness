@@ -52,6 +52,7 @@ let draftState      = null;
 let draftPlayers    = [];
 let selectedSize    = 32;
 let lobbySelectMode = false;
+let queenState      = null;
 
 // ── Bracket dimensions (computed dynamically in renderBracket) ──
 let B_CW, B_CH, B_PW, B_MG, B_MH, B_SLOT, B_GW, B_CS;
@@ -79,14 +80,16 @@ function showNav(show) {
 
 async function init() {
   try {
-    const [entriesRes, bracketRes, draftRes] = await Promise.all([
+    const [entriesRes, bracketRes, draftRes, queenRes] = await Promise.all([
       api('/api/entries'),
       api('/api/bracket'),
-      api('/api/draft')
+      api('/api/draft'),
+      api('/api/queen'),
     ]);
     const { entries } = await entriesRes.json();
     const bracketData = await bracketRes.json();
     const draftData   = await draftRes.json();
+    const queenData   = await queenRes.json();
 
     allEntries = entries || [];
 
@@ -99,6 +102,11 @@ async function init() {
       totalRounds = bracketData.totalRounds;
       showNav(true);
       enterActiveMode();
+    } else if (queenData.status === 'active') {
+      queenState = queenData.queen;
+      showNav(false);
+      if (queenState.phase === 'done') showQueenDone();
+      else showQueenVoting();
     } else if (draftData.status === 'active') {
       if (draftState.phase === 'complete') showDraftComplete();
       else showDraftScreen();
@@ -914,8 +922,8 @@ function showChampion() {
   spawnConfetti();
 }
 
-function spawnConfetti() {
-  const layer  = document.getElementById('confetti-layer');
+function spawnConfetti(layerId = 'confetti-layer') {
+  const layer  = document.getElementById(layerId);
   layer.innerHTML = '';
   const colors = ['#c9a84c','#e8c96a','#f0eee8','#a08030','#fff','#c9a84c'];
   for (let i = 0; i < 90; i++) {
@@ -1170,6 +1178,68 @@ function initPopup() {
       hide();
     }
   });
+}
+
+// ── Queen of the Gala ─────────────────────────────
+
+async function startQueenMode() {
+  const res  = await api('/api/queen/start', { method: 'POST' });
+  const data = await res.json();
+  if (!data.ok) { alert(data.error || 'Could not start Queen mode'); return; }
+  queenState = data.queen;
+  showNav(false);
+  showQueenVoting();
+}
+
+function showQueenVoting() {
+  showScreen('screen-queen');
+  const { champion, challenger, seen, total } = queenState;
+
+  document.getElementById('queen-progress').textContent =
+    `Matchup ${seen - 1} of ${total - 1}`;
+
+  document.getElementById('queen-img-champion').src        = champion.url;
+  document.getElementById('queen-img-champion').alt        = champion.name;
+  document.getElementById('queen-name-champion').textContent = champion.name;
+
+  document.getElementById('queen-img-challenger').src         = challenger.url;
+  document.getElementById('queen-img-challenger').alt         = challenger.name;
+  document.getElementById('queen-name-challenger').textContent = challenger.name;
+
+  document.getElementById('queen-contender-champion').classList.remove('chosen');
+  document.getElementById('queen-contender-challenger').classList.remove('chosen');
+
+  // Preload next challenger
+  if (queenState.queue.length > 0) new Image().src = queenState.queue[0].url;
+}
+
+async function castQueenVote(side) {
+  document.getElementById(`queen-contender-${side}`).classList.add('chosen');
+  await new Promise(r => setTimeout(r, 420));
+
+  const res  = await api('/api/queen/vote', { method: 'POST', body: { winner: side } });
+  const data = await res.json();
+  if (!data.ok) return;
+  queenState = data.queen;
+
+  if (queenState.phase === 'done') showQueenDone();
+  else showQueenVoting();
+}
+
+function showQueenDone() {
+  showScreen('screen-queen-done');
+  document.getElementById('queen-done-img').src         = queenState.champion.url;
+  document.getElementById('queen-done-img').alt         = queenState.champion.name;
+  document.getElementById('queen-done-name').textContent = queenState.champion.name;
+  spawnConfetti('queen-confetti-layer');
+}
+
+async function exitQueenMode() {
+  await api('/api/queen/reset', { method: 'POST' });
+  queenState = null;
+  renderLobby();
+  showScreen('screen-lobby');
+  showNav(false);
 }
 
 // ── Boot ──────────────────────────────────────────

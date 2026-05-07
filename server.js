@@ -398,6 +398,76 @@ app.post('/api/draft/pick', (req, res) => {
   res.json({ ok: true, draft });
 });
 
+// ── Queen of the Gala API ─────────────────────────
+
+app.get('/api/queen', (req, res) => {
+  const sid = getSession(req);
+  if (!sid) return res.json({ status: 'empty' });
+  const queen = loadJSON(sessionFile(sid, 'queen.json'));
+  if (!queen) return res.json({ status: 'empty' });
+  res.json({ status: 'active', queen });
+});
+
+app.post('/api/queen/start', (req, res) => {
+  const sid = getSession(req);
+  if (!sid) return res.status(400).json({ error: 'Missing session' });
+
+  const featuredPath = path.join(PHOTOS_DIR, 'featured');
+  if (!fs.existsSync(featuredPath)) return res.status(400).json({ error: 'No featured folder found' });
+
+  const photos = fs.readdirSync(featuredPath)
+    .filter(f => IMAGE_EXTS.has(path.extname(f).toLowerCase()) && fs.statSync(path.join(featuredPath, f)).isFile())
+    .map(f => ({ name: nameFromFilename(f), filename: `featured/${f}`, url: `/photos/featured/${encodeURIComponent(f)}` }));
+
+  if (photos.length < 2) return res.status(400).json({ error: 'Need at least 2 featured photos' });
+
+  const shuffled = [...photos].sort(() => Math.random() - 0.5);
+  const queen = {
+    champion:  shuffled[0],
+    challenger: shuffled[1],
+    queue:     shuffled.slice(2),
+    seen:      2,
+    total:     photos.length,
+    phase:     'voting',
+  };
+
+  saveJSON(sessionFile(sid, 'queen.json'), queen);
+  res.json({ ok: true, queen });
+});
+
+app.post('/api/queen/vote', (req, res) => {
+  const sid = getSession(req);
+  if (!sid) return res.status(400).json({ error: 'Missing session' });
+  const { winner } = req.body; // 'champion' or 'challenger'
+  const queenFile = sessionFile(sid, 'queen.json');
+  const queen = loadJSON(queenFile);
+  if (!queen || queen.phase !== 'voting') return res.status(400).json({ error: 'Not in voting phase' });
+
+  const newChampion = winner === 'champion' ? queen.champion : queen.challenger;
+
+  if (queen.queue.length === 0) {
+    queen.champion   = newChampion;
+    queen.challenger = null;
+    queen.phase      = 'done';
+  } else {
+    queen.champion   = newChampion;
+    queen.challenger = queen.queue[0];
+    queen.queue      = queen.queue.slice(1);
+    queen.seen++;
+  }
+
+  saveJSON(queenFile, queen);
+  res.json({ ok: true, queen });
+});
+
+app.post('/api/queen/reset', (req, res) => {
+  const sid = getSession(req);
+  if (!sid) return res.json({ ok: true });
+  const f = sessionFile(sid, 'queen.json');
+  if (fs.existsSync(f)) fs.unlinkSync(f);
+  res.json({ ok: true });
+});
+
 app.post('/api/draft/reset', (req, res) => {
   const sid = getSession(req);
   if (!sid) return res.json({ ok: true });
