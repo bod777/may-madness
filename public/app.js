@@ -520,7 +520,7 @@ function setOwnerBadge(elId, filename) {
 // ── Voting ────────────────────────────────────────
 
 function searchPerson(name) {
-  window.open('https://www.google.com/search?q=' + encodeURIComponent(name + ' Met Gala 2026'), '_blank');
+  window.open('https://www.google.com/search?q=' + encodeURIComponent(name), '_blank');
 }
 
 function preloadMatchup(matchup) {
