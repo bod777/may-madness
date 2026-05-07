@@ -188,6 +188,15 @@ html, body { height: 100%; background: var(--bg); color: var(--white); font-fami
 }
 .contender.chosen { animation: winner-flash 0.5s ease forwards; }
 
+.btn-skip {
+  position: absolute; bottom: -44px; left: 50%; transform: translateX(-50%);
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text-dim); font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 5px 14px; border-radius: 20px; cursor: pointer; white-space: nowrap;
+  transition: border-color 0.2s, color 0.2s;
+}
+.btn-skip:hover { border-color: var(--gold-dim); color: var(--gold); }
+
 /* ══════════════════════════════════════════════════
    BETWEEN ROUNDS
 ══════════════════════════════════════════════════ */

@@ -173,13 +173,10 @@ function setSize(n) {
 }
 
 async function startRandom() {
-  const shuffled = [...allEntries].sort(() => Math.random() - 0.5);
-  // If we have enough entries, slice to size; otherwise pass all and let server pad with byes
-  const picked = shuffled.slice(0, Math.min(selectedSize, allEntries.length));
   const res = await api('/api/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ entries: picked, size: selectedSize })
+    body: JSON.stringify({ mode: 'random', size: selectedSize })
   });
   const data = await res.json();
   state       = data.bracket;
@@ -542,6 +539,13 @@ function showVoting() {
   document.getElementById('contender-a').classList.remove('chosen');
   document.getElementById('contender-b').classList.remove('chosen');
 
+  // Show skip button only for random brackets in round 1 with pool entries available
+  const skipBtn = document.getElementById('btn-skip');
+  if (skipBtn) {
+    const canSkip = state.mode === 'random' && state.currentRound === 0 && (state.remainingPool?.length ?? 0) >= 2;
+    skipBtn.classList.toggle('hidden', !canSkip);
+  }
+
   // Preload next matchup while user is deciding
   preloadMatchup(round[state.currentMatchup + 1]);
 }
@@ -563,6 +567,16 @@ async function castVote(side) {
   if (state.phase === 'done')                showChampion();
   else if (state.phase === 'between_rounds') showBetweenRounds();
   else                                       showVoting();
+}
+
+async function skipMatchup() {
+  const res  = await api('/api/skip', { method: 'POST' });
+  const data = await res.json();
+  if (!data.ok) return;
+  state       = data.bracket;
+  roundName   = data.roundName;
+  totalRounds = data.totalRounds;
+  showVoting();
 }
 
 // ── Between Rounds ────────────────────────────────

@@ -13,6 +13,9 @@ const THUMBS_DIR   = path.join(__dirname, 'data', 'thumbnails');
 const PHOTOS_DIR   = path.join(__dirname, 'photos');
 const IMAGE_EXTS   = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif']);
 
+// Subdirectory name → selection weight multiplier (root photos = 1)
+const TIER_SUBDIRS = { top: 3, mid: 2 };
+
 fs.mkdirSync(SESSIONS_DIR, { recursive: true });
 fs.mkdirSync(THUMBS_DIR,   { recursive: true });
 
@@ -20,13 +23,52 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/photos', express.static(PHOTOS_DIR));
 
+// ── Photo scanning ────────────────────────────────
+
+function scanPhotos() {
+  if (!fs.existsSync(PHOTOS_DIR)) return [];
+  const results = [];
+
+  // Root-level photos — weight 1
+  for (const f of fs.readdirSync(PHOTOS_DIR)) {
+    const full = path.join(PHOTOS_DIR, f);
+    if (IMAGE_EXTS.has(path.extname(f).toLowerCase()) && fs.statSync(full).isFile()) {
+      results.push({ name: nameFromFilename(f), filename: f, url: `/photos/${encodeURIComponent(f)}`, weight: 1 });
+    }
+  }
+
+  // Tiered subdirectory photos
+  for (const [subdir, weight] of Object.entries(TIER_SUBDIRS)) {
+    const subdirPath = path.join(PHOTOS_DIR, subdir);
+    if (!fs.existsSync(subdirPath)) continue;
+    for (const f of fs.readdirSync(subdirPath)) {
+      const full = path.join(subdirPath, f);
+      if (IMAGE_EXTS.has(path.extname(f).toLowerCase()) && fs.statSync(full).isFile()) {
+        results.push({ name: nameFromFilename(f), filename: `${subdir}/${f}`, url: `/photos/${subdir}/${encodeURIComponent(f)}`, weight });
+      }
+    }
+  }
+
+  return results;
+}
+
+// Weighted random selection — picks n entries, returns selected + remaining
+function weightedSample(pool, n) {
+  if (n >= pool.length) return { selected: [...pool], remaining: [] };
+  const scored = pool.map(e => ({ entry: e, score: Math.random() * (e.weight || 1) }));
+  scored.sort((a, b) => b.score - a.score);
+  return { selected: scored.slice(0, n).map(x => x.entry), remaining: scored.slice(n).map(x => x.entry) };
+}
+
 // ── Thumbnail endpoint ────────────────────────────
-app.get('/thumbnail/:filename', async (req, res) => {
-  const filename = path.basename(req.params.filename);
-  const srcPath  = path.join(PHOTOS_DIR, filename);
+app.get('/thumbnail/*', async (req, res) => {
+  const relPath  = decodeURIComponent(req.params[0]);
+  const filename = path.basename(relPath);
+  const subdir   = path.dirname(relPath);
+  const srcPath  = (subdir && subdir !== '.') ? path.join(PHOTOS_DIR, subdir, filename) : path.join(PHOTOS_DIR, filename);
   if (!fs.existsSync(srcPath)) return res.status(404).send('Not found');
 
-  const thumbName = filename.replace(/\.[^.]+$/, '') + '.webp';
+  const thumbName = relPath.replace(/\//g, '_').replace(/\.[^.]+$/, '') + '.webp';
   const thumbPath = path.join(THUMBS_DIR, thumbName);
 
   if (!fs.existsSync(thumbPath)) {
@@ -160,11 +202,7 @@ function getRoundName(roundIndex, totalRounds) {
 // ── API ───────────────────────────────────────────
 
 app.get('/api/entries', (req, res) => {
-  if (!fs.existsSync(PHOTOS_DIR)) return res.json({ entries: [] });
-  const entries = fs.readdirSync(PHOTOS_DIR)
-    .filter(f => IMAGE_EXTS.has(path.extname(f).toLowerCase()))
-    .map(filename => ({ name: nameFromFilename(filename), filename, url: `/photos/${encodeURIComponent(filename)}` }));
-  res.json({ entries });
+  res.json({ entries: scanPhotos() });
 });
 
 app.get('/api/bracket', (req, res) => {
@@ -179,13 +217,63 @@ app.get('/api/bracket', (req, res) => {
 app.post('/api/start', (req, res) => {
   const sid = getSession(req);
   if (!sid) return res.status(400).json({ error: 'Missing session' });
-  const { entries, size } = req.body;
-  if (!entries || entries.length < 2) return res.status(400).json({ error: 'Need at least 2 entries' });
-  const targetSize = size || Math.pow(2, Math.floor(Math.log2(entries.length)));
-  const bracket = buildBracket(entries, targetSize);
+  const { entries, size, mode } = req.body;
+
+  let bracketEntries, remainingPool = [];
+
+  if (mode === 'random') {
+    const allPhotos = scanPhotos();
+    if (allPhotos.length < 2) return res.status(400).json({ error: 'Need at least 2 photos' });
+    const targetN = Math.min(size || Math.pow(2, Math.floor(Math.log2(allPhotos.length))), allPhotos.length);
+    const sampled  = weightedSample(allPhotos, targetN);
+    bracketEntries = sampled.selected;
+    remainingPool  = sampled.remaining;
+  } else {
+    if (!entries || entries.length < 2) return res.status(400).json({ error: 'Need at least 2 entries' });
+    bracketEntries = entries;
+  }
+
+  const targetSize = size || Math.pow(2, Math.floor(Math.log2(bracketEntries.length)));
+  const bracket    = buildBracket(bracketEntries, targetSize);
+  bracket.mode          = mode || 'direct';
+  bracket.remainingPool = remainingPool;
   saveJSON(sessionFile(sid, 'bracket.json'), bracket);
   const totalRounds = Math.log2(bracket.targetSize);
   res.json({ ok: true, bracket, totalRounds, roundName: getRoundName(0, totalRounds) });
+});
+
+app.post('/api/skip', (req, res) => {
+  const sid = getSession(req);
+  if (!sid) return res.status(400).json({ error: 'Missing session' });
+  const bracketFile = sessionFile(sid, 'bracket.json');
+  const bracket = loadJSON(bracketFile);
+  if (!bracket || bracket.phase !== 'voting') return res.status(400).json({ error: 'Not in voting phase' });
+  if (bracket.mode !== 'random') return res.status(400).json({ error: 'Skip only available for random brackets' });
+  if (bracket.currentRound !== 0) return res.status(400).json({ error: 'Skip only available in round 1' });
+
+  const pool = bracket.remainingPool || [];
+  if (pool.length < 2) return res.status(400).json({ error: 'Not enough photos in pool' });
+
+  const round   = bracket.rounds[bracket.currentRound];
+  const matchup = round[bracket.currentMatchup];
+
+  // Draw 2 random entries from pool
+  const i1 = Math.floor(Math.random() * pool.length);
+  let   i2 = Math.floor(Math.random() * (pool.length - 1));
+  if (i2 >= i1) i2++;
+
+  const newA = pool[i1];
+  const newB = pool[i2];
+  const oldA = matchup.entryA;
+  const oldB = matchup.entryB;
+
+  matchup.entryA        = newA;
+  matchup.entryB        = newB;
+  bracket.remainingPool = pool.filter((_, i) => i !== i1 && i !== i2).concat(oldA, oldB);
+
+  saveJSON(bracketFile, bracket);
+  const totalRounds = Math.log2(bracket.targetSize || bracket.entries.length);
+  res.json({ ok: true, bracket, roundName: getRoundName(bracket.currentRound, totalRounds), totalRounds });
 });
 
 app.post('/api/vote', (req, res) => {
