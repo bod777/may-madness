@@ -111,7 +111,6 @@ function saveJSON(file, data) {
 function nameFromFilename(filename) {
   return filename
     .replace(/\.[^/.]+$/, '')
-    .replace(/^\d{4}[_-]met[_-]gala[_-]/i, '')
     .replace(/[-_]/g, ' ')
     .replace(/\b\w/g, c => c.toUpperCase());
 }
