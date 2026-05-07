@@ -14,7 +14,7 @@ const PHOTOS_DIR   = path.join(__dirname, 'photos');
 const IMAGE_EXTS   = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif']);
 
 // Subdirectory name → selection weight multiplier (root photos = 1)
-const TIER_SUBDIRS = { featured: 3, boosted: 2 };
+const TIER_SUBDIRS = { featured: 3, boost: 2 };
 
 fs.mkdirSync(SESSIONS_DIR, { recursive: true });
 fs.mkdirSync(THUMBS_DIR,   { recursive: true });
