@@ -216,7 +216,7 @@ html, body { height: 100%; background: var(--bg); color: var(--white); font-fami
 .queen-back-btn:hover { border-color: var(--gold-dim); color: var(--gold); }
 
 .contender-search-btn {
-  position: absolute; bottom: 52px; left: 50%; transform: translateX(-50%);
+  position: absolute; bottom: 96px; left: 50%; transform: translateX(-50%);
   background: rgba(10,10,15,0.6); border: 1px solid rgba(240,238,232,0.25);
   color: rgba(240,238,232,0.7); font-size: 11px; letter-spacing: 1.5px;
   text-transform: uppercase; padding: 4px 14px; border-radius: 20px;
